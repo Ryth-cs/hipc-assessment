@@ -8,6 +8,8 @@
 #include "data.h"
 #include "setup.h"
 
+// CUDA Version
+
 /**
  * @brief Update the magnetic and electric fields. The magnetic fields are updated for a half-time-step. The electric fields are updated for a full time-step.
  * 
