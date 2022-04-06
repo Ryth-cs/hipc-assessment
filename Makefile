@@ -1,6 +1,6 @@
 CC=gcc
-CFLAGS=-O3 
-LIBFLAGS=-lm
+CFLAGS=-O3
+LIBFLAGS=-lm -fopenmp -pg
 
 OBJDIR = obj
 

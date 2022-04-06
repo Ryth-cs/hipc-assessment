@@ -11,12 +11,14 @@
 // OMP Version
 #include <time.h>
 #include <omp.h>
+#include <immintrin.h>
 
 /**
  * @brief Update the magnetic and electric fields. The magnetic fields are updated for a half-time-step. The electric fields are updated for a full time-step.
- * 
+ * -
  */
 void update_fields() {
+	#pragma omp parallel for collapse(2)
 	for (int i = 0; i < Bz_size_x; i++) {
 		for (int j = 0; j < Bz_size_y; j++) {
 			Bz[i][j] = Bz[i][j] - (dt / dx) * (Ey[i+1][j] - Ey[i][j])
@@ -24,12 +26,14 @@ void update_fields() {
 		}
 	}
 
+	#pragma omp parallel for collapse(2)
 	for (int i = 0; i < Ex_size_x; i++) {
 		for (int j = 1; j < Ex_size_y-1; j++) {
 			Ex[i][j] = Ex[i][j] + (dt / (dy * eps * mu)) * (Bz[i][j] - Bz[i][j-1]);
 		}
 	}
 
+	#pragma omp parallel for collapse(2)
 	for (int i = 1; i < Ey_size_x-1; i++) {
 		for (int j = 0; j < Ey_size_y; j++) {
 			Ey[i][j] = Ey[i][j] - (dt / (dx * eps * mu)) * (Bz[i][j] - Bz[i-1][j]);
@@ -63,6 +67,7 @@ void resolve_to_grid(double *E_mag, double *B_mag) {
 	*E_mag = 0.0;
 	*B_mag = 0.0;
 
+	#pragma omp parallel for collapse(2)
 	for (int i = 1; i < E_size_x-1; i++) {
 		for (int j = 1; j < E_size_y-1; j++) {
 			E[i][j][0] = (Ex[i-1][j] + Ex[i][j]) / 2.0;
@@ -73,6 +78,7 @@ void resolve_to_grid(double *E_mag, double *B_mag) {
 		}
 	}
 	
+	#pragma omp parallel for collapse(2)
 	for (int i = 1; i < B_size_x-1; i++) {
 		for (int j = 1; j < B_size_y-1; j++) {
 			//B[i][j][0] = 0.0; // in 2D we don't care about these dimensions
@@ -92,8 +98,7 @@ void resolve_to_grid(double *E_mag, double *B_mag) {
  * @return int The return value of the application
  */
 int main(int argc, char *argv[]) {
-	clock_t start;
-	start = clock();
+	clock_t start = clock();
 	set_defaults();
 	parse_args(argc, argv);
 	setup();
@@ -109,11 +114,12 @@ int main(int argc, char *argv[]) {
 
 	printf("Time taken to get to start: %f\n", (( double ) ( clock() - start ) / CLOCKS_PER_SEC));
 
-	// start at time 0
+	// start at time 0 -
 	double t = 0.0;
 	int i = 0;
 	while (i < steps) {
 		apply_boundary();
+		// Update Fields is the cause of most loss
 		update_fields();
 
 		t += dt;

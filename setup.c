@@ -74,7 +74,6 @@ void free_arrays() {
  * 
  */
 void problem_set_up() {
-	#pragma omp parallel for collapse(2)
     for (int i = 0; i < Ex_size_x; i++ ) {
         for (int j = 0; j < Ex_size_y; j++) {
             double xcen = lengthX / 2.0;
@@ -89,7 +88,6 @@ void problem_set_up() {
             Ex[i][j] = mag * tx;
 		}
 	}
-	#pragma omp parallel for collapse(2)
     for (int i = 0; i < Ey_size_x; i++ ) {
         for (int j = 0; j < Ey_size_y; j++) {
             double xcen = lengthX / 2.0;
