@@ -73,7 +73,7 @@ void resolve_to_grid(double *E_mag, double *B_mag) {
 			E[i][j][0] = (Ex[i-1][j] + Ex[i][j]) / 2.0;
 			E[i][j][1] = (Ey[i][j-1] + Ey[i][j]) / 2.0;
 			//E[i][j][2] = 0.0; // in 2D we don't care about this dimension
-
+			#pragma omp critical
 			*E_mag += sqrt((E[i][j][0] * E[i][j][0]) + (E[i][j][1] * E[i][j][1]));
 		}
 	}
@@ -84,7 +84,7 @@ void resolve_to_grid(double *E_mag, double *B_mag) {
 			//B[i][j][0] = 0.0; // in 2D we don't care about these dimensions
 			//B[i][j][1] = 0.0;
 			B[i][j][2] = (Bz[i-1][j] + Bz[i][j] + Bz[i][j-1] + Bz[i-1][j-1]) / 4.0;
-
+			#pragma omp critical
 			*B_mag += sqrt(B[i][j][2] * B[i][j][2]);
 		}
 	}
