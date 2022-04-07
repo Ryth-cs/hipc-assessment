@@ -21,7 +21,7 @@ void update_fields() {
 	for (int i = 0; i < Bz_size_x; i++) {
 		for (int j = 0; j < Bz_size_y; j++) {
 			Bz[i][j] = Bz[i][j] - (dt / dx) * (Ey[i+1][j] - Ey[i][j])
-				                + (dt / dy) * (Ex[i][j+1] - Ex[i][j]);
+								+ (dt / dy) * (Ex[i][j+1] - Ex[i][j]);
 		}
 	}
 
@@ -97,8 +97,10 @@ void resolve_to_grid(double *E_mag, double *B_mag) {
  * @return int The return value of the application
  */
 int main(int argc, char *argv[]) {
-	printf("Version: OMP\n");
+	printf("Version: default\n");
+	printf("Threads: %d\n", omp_get_max_threads());
 	clock_t start = clock();
+	double start_omp = omp_get_wtime();
 	set_defaults();
 	parse_args(argc, argv);
 	setup();
@@ -142,6 +144,7 @@ int main(int argc, char *argv[]) {
 	printf("Step %8d, Time: %14.8e (dt: %14.8e), E magnitude: %14.8e, B magnitude: %14.8e\n", i, t, dt, E_mag, B_mag);
 	printf("Simulation complete.\n");
 	printf("Time taken to compute: %f\n", (( double ) ( clock() - start ) / CLOCKS_PER_SEC));
+	printf("OMP took %f seconds\n", omp_get_wtime() - start_omp);
 
 	if (!no_output) 
 		write_result();
