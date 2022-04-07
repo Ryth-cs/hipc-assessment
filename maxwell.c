@@ -97,6 +97,7 @@ void resolve_to_grid(double *E_mag, double *B_mag) {
  * @return int The return value of the application
  */
 int main(int argc, char *argv[]) {
+	printf("Version: OMP\n");
 	clock_t start = clock();
 	set_defaults();
 	parse_args(argc, argv);
