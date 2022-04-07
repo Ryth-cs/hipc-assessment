@@ -64,10 +64,9 @@ void apply_boundary() {
  * @param B_mag The returned total magnitude of the Magnetic field (B) 
  */
 void resolve_to_grid(double *E_mag, double *B_mag) {
-	*E_mag = 0.0;
-	*B_mag = 0.0;
+	double local_E_mag = 0.0;
+	double local_B_mag = 0.0;
 
-	double local_E_mag = *E_mag;
 	#pragma omp parallel for collapse(2) reduction(+:local_E_mag)
 	for (int i = 1; i < E_size_x-1; i++) {
 		for (int j = 1; j < E_size_y-1; j++) {
@@ -78,9 +77,7 @@ void resolve_to_grid(double *E_mag, double *B_mag) {
 			local_E_mag += sqrt((E[i][j][0] * E[i][j][0]) + (E[i][j][1] * E[i][j][1]));
 		}
 	}
-	*E_mag = local_E_mag;
-
-	double local_B_mag = *B_mag;
+	
 	#pragma omp parallel for collapse(2) reduction(+:local_B_mag)
 	for (int i = 1; i < B_size_x-1; i++) {
 		for (int j = 1; j < B_size_y-1; j++) {
@@ -91,6 +88,8 @@ void resolve_to_grid(double *E_mag, double *B_mag) {
 			local_B_mag += sqrt(B[i][j][2] * B[i][j][2]);
 		}
 	}
+
+	*E_mag = local_E_mag;
 	*B_mag = local_B_mag;
 }
 
