@@ -45,11 +45,12 @@ void update_fields() {
  * 
  */
 void apply_boundary() {
+	#pragma omp parallel for
 	for (int i = 0; i < Ex_size_x; i++) {
 		Ex[i][0] = -Ex[i][1];
 		Ex[i][Ex_size_y-1] = -Ex[i][Ex_size_y-2];
 	}
-
+	#pragma omp parallel for
 	for (int j = 0; j < Ey_size_y; j++) {
 		Ey[0][j] = -Ey[1][j];
 		Ey[Ey_size_x-1][j] = -Ey[Ey_size_x-2][j];

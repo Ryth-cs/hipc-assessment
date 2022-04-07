@@ -58,6 +58,7 @@ double **alloc_2d_array(int m, int n) {
 
   	x = (double **)malloc(m*sizeof(double *));
   	x[0] = (double *)calloc(m*n,sizeof(double));
+	#pragma omp parallel for
   	for ( i = 1; i < m; i++ )
     	x[i] = &x[0][i*n];
 	return x;
@@ -86,9 +87,11 @@ double ***alloc_3d_array(int m, int n, int o) {
 	x = (double***) malloc(m*sizeof(double **));
 	x[0] = (double **) malloc(m*n*sizeof(double *));
 	x[0][0] = (double *) calloc(m*n*o,sizeof(double));
+	#pragma omp parallel for
 	for (int i = 1; i < m; i++) {
 		x[i] = &x[0][i*n];
 	}
+	#pragma omp parallel for collapse(2)
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < n; j++) {
 			if (i == 0 && j == 0) continue;
