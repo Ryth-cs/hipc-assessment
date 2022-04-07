@@ -8,6 +8,9 @@
 #include "data.h"
 #include "setup.h"
 
+// Base version
+#include <time.h>
+
 /**
  * @brief Update the magnetic and electric fields. The magnetic fields are updated for a half-time-step. The electric fields are updated for a full time-step.
  * 
@@ -88,9 +91,12 @@ void resolve_to_grid(double *E_mag, double *B_mag) {
  * @return int The return value of the application
  */
 int main(int argc, char *argv[]) {
+	printf("Version: default\n");
+	clock_t start = clock();
 	set_defaults();
 	parse_args(argc, argv);
 	setup();
+	printf("Time taken to setup: %f\n", (( double ) ( clock() - start ) / CLOCKS_PER_SEC));
 
 	printf("Running problem size %f x %f on a %d x %d grid.\n", lengthX, lengthY, X, Y);
 	
@@ -99,6 +105,8 @@ int main(int argc, char *argv[]) {
 	allocate_arrays();
 
 	problem_set_up();
+
+	printf("Time taken to get to start: %f\n", (( double ) ( clock() - start ) / CLOCKS_PER_SEC));
 
 	// start at time 0
 	double t = 0.0;
@@ -126,6 +134,7 @@ int main(int argc, char *argv[]) {
 
 	printf("Step %8d, Time: %14.8e (dt: %14.8e), E magnitude: %14.8e, B magnitude: %14.8e\n", i, t, dt, E_mag, B_mag);
 	printf("Simulation complete.\n");
+	printf("Time taken to compute: %f\n", (( double ) ( clock() - start ) / CLOCKS_PER_SEC));
 
 	if (!no_output) 
 		write_result();
