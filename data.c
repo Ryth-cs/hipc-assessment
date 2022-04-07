@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <math.h>
 #include <unistd.h>
-#include <immintrin.h>
 
 #include "vtk.h"
 #include "data.h"
@@ -57,7 +56,7 @@ double **alloc_2d_array(int m, int n) {
   	double **x;
   	int i;
 
-  	x = (double **)_mm_malloc(m*sizeof(double *), 64);
+  	x = (double **)malloc(m*sizeof(double *), 64);
   	x[0] = (double *)calloc(m*n,sizeof(double));
   	for ( i = 1; i < m; i++ )
     	x[i] = &x[0][i*n];
@@ -70,8 +69,8 @@ double **alloc_2d_array(int m, int n) {
  * @param array The 2D array to free
  */
 void free_2d_array(double ** array) {
-	_mm_free(array[0]);
-	_mm_free(array);
+	free(array[0]);
+	free(array);
 }
 
 /**
@@ -84,8 +83,8 @@ void free_2d_array(double ** array) {
  */
 double ***alloc_3d_array(int m, int n, int o) {
 	double ***x;
-	x = (double***) _mm_malloc(m*sizeof(double **), 64);
-	x[0] = (double **) _mm_malloc(m*n*sizeof(double *), 64);
+	x = (double***) malloc(m*sizeof(double **), 64);
+	x[0] = (double **) malloc(m*n*sizeof(double *), 64);
 	x[0][0] = (double *) calloc(m*n*o,sizeof(double));
 	for (int i = 1; i < m; i++) {
 		x[i] = &x[0][i*n];
@@ -105,7 +104,7 @@ double ***alloc_3d_array(int m, int n, int o) {
  * @param array The 3D array to free
  */
 void free_3d_array(double*** array) {
-	_mm_free(array[0][0]);
-	_mm_free(array[0]);
-	_mm_free(array);
+	free(array[0][0]);
+	free(array[0]);
+	free(array);
 }
