@@ -56,7 +56,7 @@ double **alloc_2d_array(int m, int n) {
   	double **x;
   	int i;
 
-  	x = (double **)malloc(m*sizeof(double *), 64);
+  	x = (double **)malloc(m*sizeof(double *));
   	x[0] = (double *)calloc(m*n,sizeof(double));
   	for ( i = 1; i < m; i++ )
     	x[i] = &x[0][i*n];
@@ -83,8 +83,8 @@ void free_2d_array(double ** array) {
  */
 double ***alloc_3d_array(int m, int n, int o) {
 	double ***x;
-	x = (double***) malloc(m*sizeof(double **), 64);
-	x[0] = (double **) malloc(m*n*sizeof(double *), 64);
+	x = (double***) malloc(m*sizeof(double **));
+	x[0] = (double **) malloc(m*n*sizeof(double *));
 	x[0][0] = (double *) calloc(m*n*o,sizeof(double));
 	for (int i = 1; i < m; i++) {
 		x[i] = &x[0][i*n];
