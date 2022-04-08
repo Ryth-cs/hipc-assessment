@@ -109,6 +109,7 @@ int main(int argc, char *argv[]) {
 
 	printf("Time taken to get to start: %f\n", (( double ) ( clock() - start ) / CLOCKS_PER_SEC));
 
+	
 	double t = 0.0;
 	int i = 0;
 
@@ -116,7 +117,8 @@ int main(int argc, char *argv[]) {
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
+	printf("Hello, World! I am process %d of %d\n", rank, size);
+	MPI_Finalize();
 	// start at time 0
 	for (int i = 0; i < steps; i++) {
 		apply_boundary();
