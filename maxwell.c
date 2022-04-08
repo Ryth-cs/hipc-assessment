@@ -10,6 +10,7 @@
 
 // MPI Version
 #include <time.h>
+#include <mpi.h>
 
 /**
  * @brief Update the magnetic and electric fields. The magnetic fields are updated for a half-time-step. The electric fields are updated for a full time-step.
@@ -108,10 +109,16 @@ int main(int argc, char *argv[]) {
 
 	printf("Time taken to get to start: %f\n", (( double ) ( clock() - start ) / CLOCKS_PER_SEC));
 
-	// start at time 0
 	double t = 0.0;
 	int i = 0;
-	while (i < steps) {
+
+	int rank, size;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+	// start at time 0
+	for (int i = 0; i < steps; i++) {
 		apply_boundary();
 		update_fields();
 
@@ -125,14 +132,12 @@ int main(int argc, char *argv[]) {
 			if ((!no_output) && (enable_checkpoints))
 				write_checkpoint(i);
 		}
-
-		i++;
 	}
 
 	double E_mag, B_mag;
 	resolve_to_grid(&E_mag, &B_mag);
 
-	printf("Step %8d, Time: %14.8e (dt: %14.8e), E magnitude: %14.8e, B magnitude: %14.8e\n", i, t, dt, E_mag, B_mag);
+	printf("Step %8d, Time: %14.8e (dt: %14.8e), E magnitude: %14.8e, B magnitude: %14.8e\n", steps, t, dt, E_mag, B_mag);
 	printf("Simulation complete.\n");
 	printf("Time taken to compute: %f\n", (( double ) ( clock() - start ) / CLOCKS_PER_SEC));
 
