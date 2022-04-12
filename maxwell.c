@@ -23,13 +23,13 @@ void update_fields(int rank, int displs[], int recvCounts[], int col_length) {
 			//send[i][j] = recv[i][j]+num;
 			//send[i][j] = rank;
 			int rel_i = displs[rank]+i;
-			send_array[i][j] = send_array[i][j] - (dt / dx) * (Ey[rel_i+1][j] - Ey[rel_i][j])
+			bz_array[i][j] = bz_array[i][j] - (dt / dx) * (Ey[rel_i+1][j] - Ey[rel_i][j])
 								+ (dt / dy) * (Ex[rel_i][j+1] - Ex[rel_i][j]);
 		}
 	}
 	// Gather the vector to complete matrix on all processes
-	MPI_Allgatherv(&(send_array[0][0]), recvCounts[rank], arrType,
-			&(Bz[0][0]), recvCounts, displs, arrType,
+	MPI_Allgatherv(&(bz_array[0][0]), recvCounts[rank], bzType,
+			&(Bz[0][0]), recvCounts, displs, bzType,
 			MPI_COMM_WORLD);
 
 
@@ -129,10 +129,15 @@ int main(int argc, char *argv[]) {
 
 	int row_length = X;
 	int col_length = Y;
-	// Create datatype
-    //MPI_Datatype arrType;
-    MPI_Type_vector(1, col_length, 0, MPI_DOUBLE, &arrType);
-    MPI_Type_commit(&arrType);
+	// Create datatype for Bz
+    MPI_Type_vector(1, col_length, 0, MPI_DOUBLE, &bzType);
+    MPI_Type_commit(&bzType);
+	// Create datatype for Ex
+    MPI_Type_vector(1, col_length, 0, MPI_DOUBLE, &exType);
+    MPI_Type_commit(&exType);
+	// Create datatype for Ey
+    MPI_Type_vector(1, col_length, 0, MPI_DOUBLE, &eyType);
+    MPI_Type_commit(&eyType);
 
 	// Calculate the no. of rows for each process and calculate offset
     int interval, modulus;
@@ -151,7 +156,7 @@ int main(int argc, char *argv[]) {
     }
 
 	// Create local matrix for alterations
-    send_array = alloc_2d_array(recvCounts[rank], col_length);
+    bz_array = alloc_2d_array(recvCounts[rank], col_length);
 
 	printf("%d: Time taken to get to start: %f\n", rank, MPI_Wtime()-start_time);
 

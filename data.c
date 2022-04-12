@@ -47,8 +47,8 @@ int B_size_x, B_size_y, B_size_z;
 double *** B;
 
 // MPI additions
-double ** send_array;
-int arrType;
+double ** bz_array, ex_array, ey_array;
+int bzType, exType, eyType;
 
 /**
  * @brief Allocate a 2D array that is addressable using square brackets
