@@ -58,6 +58,10 @@ extern double *** E;
 extern int B_size_x, B_size_y, B_size_z;
 extern double *** B;
 
+// MPI additions
+extern double ** send_array;
+extern int arrType;
+
 double **alloc_2d_array(int m, int n);
 void free_2d_array(double ** array);
 double ***alloc_3d_array(int m, int n, int o);

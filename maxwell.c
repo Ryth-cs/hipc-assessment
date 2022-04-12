@@ -16,33 +16,35 @@
  * @brief Update the magnetic and electric fields. The magnetic fields are updated for a half-time-step. The electric fields are updated for a full time-step.
  * 
  */
-void update_fields(int rank) {
+void update_fields(int rank, int displs[], int recvCounts[], int col_length) {
 	// 4000 x 4000
-	
-	if (rank == 0) {
-		clock_t update_start = clock();
-		// printf("%d\n", rank);
-		for (int i = 0; i < Bz_size_x; i++) {
-			for (int j = 0; j < Bz_size_y; j++) {
-				Bz[i][j] = Bz[i][j] - (dt / dx) * (Ey[i+1][j] - Ey[i][j])
-									+ (dt / dy) * (Ex[i][j+1] - Ex[i][j]);
-			}
+	for (int i=0; i<recvCounts[rank]; i++) {
+		for (int j=0; j<col_length; j++) {
+			//send[i][j] = recv[i][j]+num;
+			//send[i][j] = rank;
+			int rel_i = displs[rank]+i;
+			send_array[i][j] = send_array[i][j] - (dt / dx) * (Ey[rel_i+1][j] - Ey[rel_i][j])
+								+ (dt / dy) * (Ex[rel_i][j+1] - Ex[rel_i][j]);
 		}
+	}
+	// Gather the vector to complete matrix on all processes
+	MPI_Allgatherv(&(send_array[0][0]), recvCounts[rank], arrType,
+			&(Bz[0][0]), recvCounts, displs, arrType,
+			MPI_COMM_WORLD);
 
-		// 4000 x 4000
-		for (int i = 0; i < Ex_size_x; i++) {
-			for (int j = 1; j < Ex_size_y-1; j++) {
-				Ex[i][j] = Ex[i][j] + (dt / (dy * eps * mu)) * (Bz[i][j] - Bz[i][j-1]);
-			}
-		}
 
-		// 4000 x 4000
-		for (int i = 1; i < Ey_size_x-1; i++) {
-			for (int j = 0; j < Ey_size_y; j++) {
-				Ey[i][j] = Ey[i][j] - (dt / (dx * eps * mu)) * (Bz[i][j] - Bz[i-1][j]);
-			}
+	// 4000 x 4000
+	for (int i = 0; i < Ex_size_x; i++) {
+		for (int j = 1; j < Ex_size_y-1; j++) {
+			Ex[i][j] = Ex[i][j] + (dt / (dy * eps * mu)) * (Bz[i][j] - Bz[i][j-1]);
 		}
-		// printf("Time taken to setup: %f\n", (( double ) ( clock() - update_start ) / CLOCKS_PER_SEC));
+	}
+
+	// 4000 x 4000
+	for (int i = 1; i < Ey_size_x-1; i++) {
+		for (int j = 0; j < Ey_size_y; j++) {
+			Ey[i][j] = Ey[i][j] - (dt / (dx * eps * mu)) * (Bz[i][j] - Bz[i-1][j]);
+		}
 	}
 }
 
@@ -101,20 +103,23 @@ void resolve_to_grid(double *E_mag, double *B_mag) {
  * @return int The return value of the application
  */
 int main(int argc, char *argv[]) {
+
+	// MPI Setup
 	int rank, size;
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	printf("Hello, World! I am process %d of %d\n", rank, size);
 	
-	clock_t start = clock();
-	printf("Version: MPI\n");
+	// Set initial timer
+	double start_time = MPI_Wtime();
+
+	//printf("Version: MPI\n");
 	set_defaults();
 	parse_args(argc, argv);
 	setup();
-	printf("Time taken to setup: %f\n", (( double ) ( clock() - start ) / CLOCKS_PER_SEC));
+	printf("%d: Time taken to setup: %f\n", rank, MPI_Wtime()-start_time);
 
-	printf("Running problem size %f x %f on a %d x %d grid.\n", lengthX, lengthY, X, Y);
+	printf("%d: Running problem size %f x %f on a %d x %d grid.\n", rank, lengthX, lengthY, X, Y);
 
 	if (verbose) print_opts();
 	
@@ -122,40 +127,65 @@ int main(int argc, char *argv[]) {
 
 	problem_set_up();
 
-	printf("Time taken to get to start: %f\n", (( double ) ( clock() - start ) / CLOCKS_PER_SEC));
+	int row_length = X;
+	int col_length = Y;
+	// Create datatype
+    //MPI_Datatype arrType;
+    MPI_Type_vector(1, col_length, 0, MPI_DOUBLE, &arrType);
+    MPI_Type_commit(&arrType);
 
+	// Calculate the no. of rows for each process and calculate offset
+    int interval, modulus;
+    int recvCounts[size]; // Number of rows to be received
+    int displs[size]; // Displacement offset from 0 and starting value
+    interval = row_length/size;
+    modulus = row_length % size;
+    for (int i=0; i < size; i++) {
+        if (modulus != 0) {
+            recvCounts[i] = interval+1;
+            modulus--;
+        } else {
+            recvCounts[i] = interval;
+        }
+        displs[i] = (i == 0) ? 0 : displs[i-1]+recvCounts[i-1];
+    }
+
+	// Create local matrix for alterations
+    send_array = alloc_2d_array(recvCounts[rank], col_length);
+
+	printf("%d: Time taken to get to start: %f\n", rank, MPI_Wtime()-start_time);
+
+	// MPI_Finalize();
+	// exit(0);
+
+	///////////////////////////////////////
 	double t = 0.0;
 	// start at time 0
 	for (int i = 0; i < steps; i++) {
 		apply_boundary();
-		update_fields(rank);
+		update_fields(rank, displs, recvCounts, col_length);
 
 		t += dt;
-		if (rank == 0) {
-			if (i % output_freq == 0) {
-				double E_mag, B_mag;
-				resolve_to_grid(&E_mag, &B_mag);
-				printf("Step %8d, Time: %14.8e (dt: %14.8e), E magnitude: %14.8e, B magnitude: %14.8e\n", i, t, dt, E_mag, B_mag);
+		if (i % output_freq == 0) {
+			double E_mag, B_mag;
+			resolve_to_grid(&E_mag, &B_mag);
+			printf("Step %8d, Time: %14.8e (dt: %14.8e), E magnitude: %14.8e, B magnitude: %14.8e\n", i, t, dt, E_mag, B_mag);
 
-				if ((!no_output) && (enable_checkpoints))
-					write_checkpoint(i);
-			}
+			if ((!no_output) && (enable_checkpoints))
+				write_checkpoint(i);
 		}
 	}
 
-	if (rank == 0) {
+	double E_mag, B_mag;
+	resolve_to_grid(&E_mag, &B_mag);
 
-		double E_mag, B_mag;
-		resolve_to_grid(&E_mag, &B_mag);
+	printf("Step %8d, Time: %14.8e (dt: %14.8e), E magnitude: %14.8e, B magnitude: %14.8e\n", steps, t, dt, E_mag, B_mag);
+	printf("Simulation complete.\n");
+	printf("Time taken to compute: %f\n", MPI_Wtime()-start_time);
 
-		printf("Step %8d, Time: %14.8e (dt: %14.8e), E magnitude: %14.8e, B magnitude: %14.8e\n", steps, t, dt, E_mag, B_mag);
-		printf("Simulation complete.\n");
-		printf("Time taken to compute: %f\n", (( double ) ( clock() - start ) / CLOCKS_PER_SEC));
-	
-		if (!no_output) 
-			write_result();
-	}
-	
+	if (!no_output) 
+		write_result();
+
 	free_arrays();
 
 	MPI_Finalize();

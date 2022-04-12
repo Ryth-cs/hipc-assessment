@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <unistd.h>
+#include <mpi.h>
 
 #include "vtk.h"
 #include "data.h"
@@ -44,6 +45,10 @@ int E_size_x, E_size_y, E_size_z;
 double *** E;
 int B_size_x, B_size_y, B_size_z;
 double *** B;
+
+// MPI additions
+double ** send_array;
+int arrType;
 
 /**
  * @brief Allocate a 2D array that is addressable using square brackets
