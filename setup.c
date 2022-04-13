@@ -41,7 +41,7 @@ void setup() {
  * @brief Allocate all of the arrays used for computation
  * 
  */
-void allocate_arrays() {
+void allocate_arrays(int recv_count, int col_length) {
 	Ex_size_x = X; Ex_size_y = Y+1;
 	Ex = alloc_2d_array(X, Y+1);
 	Ey_size_x = X+1; Ey_size_y = Y;
@@ -55,6 +55,11 @@ void allocate_arrays() {
 
 	B_size_x = X+1; B_size_y = Y+1; B_size_z = 3;
 	B = alloc_3d_array(B_size_x, B_size_y, B_size_z);
+
+	// Create local matrix for alterations
+	bz_local = alloc_2d_array(recv_count, col_length);
+    ex_local = alloc_2d_array(recv_count, col_length+1);
+    ey_local = alloc_2d_array(recv_count+1, col_length);
 }
 
 /**
@@ -68,14 +73,16 @@ void free_arrays() {
 	free_3d_array(E);
 	free_3d_array(B);
 	// MPI
-	free_2d_array(bz_array);
+	free_2d_array(bz_local);
+	free_2d_array(ex_local);
+	free_2d_array(ey_local);
 }
 
 /**
  * @brief Set up a guassian to curve around the centre
  * 
  */
-void problem_set_up() {
+void problem_set_up(int recv_count, int displacement, int col_length) {
     for (int i = 0; i < Ex_size_x; i++ ) {
         for (int j = 0; j < Ex_size_y; j++) {
             double xcen = lengthX / 2.0;
@@ -103,5 +110,19 @@ void problem_set_up() {
 			double mag = exp(-400.0 * (rlen - (lengthY / 4.0)) * (rlen - (lengthY / 4.0)));
             Ey[i][j] = mag * ty;
 		}
+	}
+
+	for (int i=0; i<recv_count; i++) {
+		int rel_i = displacement+i;
+		for (int j=0; j<col_length; j++) {
+			bz_local[i][j] = Bz[rel_i][j];
+			ex_local[i][j] = Ex[rel_i][j];
+			ey_local[i][j] = Ey[rel_i][j];
+		}
+		ex_local[i][col_length] = Ex[rel_i][col_length];
+	}
+	int rel_row = displacement+recv_count;
+	for (int i=0; i<col_length+1; i++) {
+		ey_local[recv_count][i] = Ey[rel_row][i];
 	}
 }

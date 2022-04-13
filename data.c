@@ -47,7 +47,9 @@ int B_size_x, B_size_y, B_size_z;
 double *** B;
 
 // MPI additions
-double ** bz_array, ex_array, ey_array;
+double ** bz_local;
+double ** ex_local;
+double ** ey_local;
 int bzType, exType, eyType;
 
 /**

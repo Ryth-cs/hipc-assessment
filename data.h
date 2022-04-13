@@ -59,7 +59,9 @@ extern int B_size_x, B_size_y, B_size_z;
 extern double *** B;
 
 // MPI additions
-extern double ** bz_array, ex_array, ey_array;
+extern double ** bz_local;
+extern double ** ex_local;
+extern double ** ey_local;
 extern int bzType, exType, eyType;
 
 double **alloc_2d_array(int m, int n);
