@@ -67,6 +67,8 @@ void free_arrays() {
 	free_2d_array(Bz);
 	free_3d_array(E);
 	free_3d_array(B);
+	// MPI
+	free_2d_array(bz_array);
 }
 
 /**

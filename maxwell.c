@@ -16,20 +16,20 @@
  * @brief Update the magnetic and electric fields. The magnetic fields are updated for a half-time-step. The electric fields are updated for a full time-step.
  * 
  */
-void update_fields(int rank, int displs[], int recvCounts[], int col_length) {
+void update_fields(int rank, int bzdispls[], int bzrecvCounts[], int col_length) {
 	// 4000 x 4000
-	for (int i=0; i<recvCounts[rank]; i++) {
+	for (int i=0; i<bzrecvCounts[rank]; i++) {
 		for (int j=0; j<col_length; j++) {
 			//send[i][j] = recv[i][j]+num;
 			//send[i][j] = rank;
-			int rel_i = displs[rank]+i;
+			int rel_i = bzdispls[rank]+i;
 			bz_array[i][j] = bz_array[i][j] - (dt / dx) * (Ey[rel_i+1][j] - Ey[rel_i][j])
 								+ (dt / dy) * (Ex[rel_i][j+1] - Ex[rel_i][j]);
 		}
 	}
 	// Gather the vector to complete matrix on all processes
-	MPI_Allgatherv(&(bz_array[0][0]), recvCounts[rank], bzType,
-			&(Bz[0][0]), recvCounts, displs, bzType,
+	MPI_Allgatherv(&(bz_array[0][0]), bzrecvCounts[rank], bzType,
+			&(Bz[0][0]), bzrecvCounts, bzdispls, bzType,
 			MPI_COMM_WORLD);
 
 
@@ -141,22 +141,26 @@ int main(int argc, char *argv[]) {
 
 	// Calculate the no. of rows for each process and calculate offset
     int interval, modulus;
-    int recvCounts[size]; // Number of rows to be received
+    int bzrecvCounts[size]; // Number of rows to be received
+    int bzdispls[size]; // Displacement offset from 0 and starting value
+	int recvCounts[size]; // Number of rows to be received
     int displs[size]; // Displacement offset from 0 and starting value
+
+	// Bz calcs
     interval = row_length/size;
     modulus = row_length % size;
     for (int i=0; i < size; i++) {
         if (modulus != 0) {
-            recvCounts[i] = interval+1;
+            bzrecvCounts[i] = interval+1;
             modulus--;
         } else {
-            recvCounts[i] = interval;
+            bzrecvCounts[i] = interval;
         }
-        displs[i] = (i == 0) ? 0 : displs[i-1]+recvCounts[i-1];
+        bzdispls[i] = (i == 0) ? 0 : bzdispls[i-1]+bzrecvCounts[i-1];
     }
 
 	// Create local matrix for alterations
-    bz_array = alloc_2d_array(recvCounts[rank], col_length);
+    bz_array = alloc_2d_array(bzrecvCounts[rank], col_length);
 
 	printf("%d: Time taken to get to start: %f\n", rank, MPI_Wtime()-start_time);
 
@@ -168,7 +172,7 @@ int main(int argc, char *argv[]) {
 	// start at time 0
 	for (int i = 0; i < steps; i++) {
 		apply_boundary();
-		update_fields(rank, displs, recvCounts, col_length);
+		update_fields(rank, bzdispls, bzrecvCounts, col_length);
 
 		t += dt;
 		if (i % output_freq == 0) {
