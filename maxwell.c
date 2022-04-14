@@ -27,7 +27,7 @@ void printMatrix(double **values, int row, int col) {
  * @brief Update the magnetic and electric fields. The magnetic fields are updated for a half-time-step. The electric fields are updated for a full time-step.
  * 
  */
-void update_fields(int rank, int bzdispls[], int recv_count, int col_length) {
+void update_fields(int rank, int size, int recv_count, int col_length) {
 	// 4000 x 4000
 	// for (int i = 0; i < Bz_size_x; i++) {
 	// 	for (int j = 0; j < Bz_size_y; j++) {
@@ -60,11 +60,15 @@ void update_fields(int rank, int bzdispls[], int recv_count, int col_length) {
 	// 		Ey[i][j] = Ey[i][j] - (dt / (dx * eps * mu)) * (Bz[i][j] - Bz[i-1][j]);
 	// 	}
 	// }
-	for (int i = 1; i < recv_count; i++) {
+	int start_row = (rank == 0) ? 1 : 0;
+	int finish_row = (rank == size-1) ? recv_count : recv_count+1;
+	printf("%d: start: %d, finish: %d\n", rank, start_row, finish_row);
+	for (int i = start_row; i < finish_row; i++) {
 		for (int j = 0; j < col_length; j++) {
-			ey_local[i][j] = ey_local[i][j] - (dt / (dx * eps * mu)) * (bz_local[i][j] - bz_local[i-1][j]);
+			ey_local[i][j] = ey_local[i][j] - (dt / (dx * eps * mu)) * (bz_local[i][j] - bz_local[i-1][j]); // Trying to reference outside area
 		}
 	}
+	printf("%d: EY EDIT SUCCESS\n", rank);
 }
 
 /**
@@ -78,6 +82,7 @@ void apply_boundary(int rank, int size, int recv_count) {
 	// }
 	for (int i=0; i<recv_count; i++) {
 		ex_local[i][0] = -ex_local[i][1];
+		ex_local[i][Ex_size_y-1] = -ex_local[i][Ex_size_y-2];
 	}
 
 	// for (int j = 0; j < Ey_size_y; j++) {
@@ -148,9 +153,9 @@ int main(int argc, char *argv[]) {
 	set_defaults();
 	parse_args(argc, argv);
 	setup();
-	printf("%d: Time taken to setup: %f\n", rank, MPI_Wtime()-start_time);
+	//printf("%d: Time taken to setup: %f\n", rank, MPI_Wtime()-start_time);
 
-	printf("%d: Running problem size %f x %f on a %d x %d grid.\n", rank, lengthX, lengthY, X, Y);
+	//printf("%d: Running problem size %f x %f on a %d x %d grid.\n", rank, lengthX, lengthY, X, Y);
 
 	if (verbose) print_opts();
 
@@ -191,21 +196,45 @@ int main(int argc, char *argv[]) {
 
 	problem_set_up(recvCounts[rank], displs[rank], col_length);	
 
-	printf("%d: Time taken to get to start: %f\n", rank, MPI_Wtime()-start_time);
+	//printf("%d: Time taken to get to start: %f\n", rank, MPI_Wtime()-start_time);
+
+
+	printf("%d: ey local\n", rank);
+	printMatrix(ey_local, recvCounts[rank]+1, col_length);
+	printf("\n");
+
 
 	double t = 0.0;
 	// start at time 0
 	int i = 0;
 	while(i < steps) {
 		apply_boundary(rank, size, recvCounts[rank]);
-		update_fields(rank, displs, recvCounts[rank], col_length);
+
+		printf("%d: Ey post boundary step: %d\n", rank, i);
+		printMatrix(ey_local, recvCounts[rank]+1, col_length);
+		printf("\n");
+
+		update_fields(rank, size, recvCounts[rank], col_length);
 
 		t += dt;
+
+		printf("%d: Ey before recv\n", rank);
+		printMatrix(ey_local, recvCounts[rank]+1, col_length);
+		printf("\n");
 
 		// Grab top row from next rank and replace bottom of current
         int send_rank = (rank == 0) ? MPI_PROC_NULL : rank-1;
         int recv_rank = (rank == size-1) ? MPI_PROC_NULL : rank+1;
         MPI_Sendrecv(&ey_local[0][0], 1, bzType, send_rank, 0, &ey_local[recvCounts[rank]][0], 1, bzType, recv_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+		printf("%d: Ey post recv\n", rank);
+		printMatrix(ey_local, recvCounts[rank]+1, col_length);
+		printf("\n");
+
+		printf("%d: Ey step: %d\n", rank, i);
+		printMatrix(ey_local, recvCounts[rank]+1, col_length);
+		printf("\n");
+		
 
 		i++;
 	}
@@ -225,10 +254,12 @@ int main(int argc, char *argv[]) {
 	double E_mag, B_mag;
 	resolve_to_grid(&E_mag, &B_mag);
 
-	printf("Step %8d, Time: %14.8e (dt: %14.8e), E magnitude: %14.8e, B magnitude: %14.8e\n", steps, t, dt, E_mag, B_mag);
-	printf("Simulation complete.\n");
-	printf("Time taken to compute: %f\n", MPI_Wtime()-start_time);
-
+	if (rank == 0) {
+		printf("Step %8d, Time: %14.8e (dt: %14.8e), E magnitude: %14.8e, B magnitude: %14.8e\n", steps, t, dt, E_mag, B_mag);
+		printf("Simulation complete.\n");
+		//printf("Time taken to compute: %f\n", MPI_Wtime()-start_time);
+	}
+	
 	if (!no_output) 
 		write_result();
 
