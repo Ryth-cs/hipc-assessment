@@ -60,6 +60,8 @@ void allocate_arrays(int recv_count, int col_length) {
 	bz_local = alloc_2d_array(recv_count, col_length);
     ex_local = alloc_2d_array(recv_count, col_length+1);
     ey_local = alloc_2d_array(recv_count+1, col_length);
+	bz_top_local = alloc_2d_array(1, col_length);
+	local_buf = alloc_2d_array(1, col_length);
 }
 
 /**
@@ -82,7 +84,7 @@ void free_arrays() {
  * @brief Set up a guassian to curve around the centre
  * 
  */
-void problem_set_up(int recv_count, int displacement, int col_length) {
+void problem_set_up(int rank, int recv_count, int displacement, int col_length) {
     for (int i = 0; i < Ex_size_x; i++ ) {
         for (int j = 0; j < Ex_size_y; j++) {
             double xcen = lengthX / 2.0;
@@ -122,7 +124,15 @@ void problem_set_up(int recv_count, int displacement, int col_length) {
 		ex_local[i][col_length] = Ex[rel_i][col_length];
 	}
 	int rel_row = displacement+recv_count;
-	for (int i=0; i<col_length+1; i++) {
+	for (int i=0; i<col_length; i++) {
 		ey_local[recv_count][i] = Ey[rel_row][i];
 	}
+	//printf("%d: BEFORE\n", rank);
+	// if (rank != 0) {
+	// 	int rel_row = displacement-1;
+	// 	for (int j=0; j<col_length; j++) {
+	// 		bz_top_local[0][j] = Bz[rel_row][j];
+	// 	}
+	// }
+	//printf("%d: AFTER\n", rank);
 }

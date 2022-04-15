@@ -27,7 +27,7 @@ void printMatrix(double **values, int row, int col) {
  * @brief Update the magnetic and electric fields. The magnetic fields are updated for a half-time-step. The electric fields are updated for a full time-step.
  * 
  */
-void update_fields(int rank, int size, int recv_count, int col_length) {
+void update_fields(int rank, int size, int recv_count, int col_length, int step) {
 	// 4000 x 4000
 	// for (int i = 0; i < Bz_size_x; i++) {
 	// 	for (int j = 0; j < Bz_size_y; j++) {
@@ -35,12 +35,49 @@ void update_fields(int rank, int size, int recv_count, int col_length) {
 	// 			                + (dt / dy) * (Ex[i][j+1] - Ex[i][j]);
 	// 	}
 	// }
+	//printf("%d: Starting Bz step %d\n", rank, step);
 	for (int i = 0; i < recv_count; i++) {
 		for (int j = 0; j < col_length; j++) {
 			bz_local[i][j] = bz_local[i][j] - (dt / dx) * (ey_local[i+1][j] - ey_local[i][j])
 				                + (dt / dy) * (ex_local[i][j+1] - ex_local[i][j]);
 		}
 	}
+	//printf("%d: Finished Bz step %d\n", rank, step);
+	// if (rank != 0) {
+	// 	for (int j = 0; j < col_length; j++) {
+	// 		bz_top_local[0][j] = bz_top_local[0][j] - (dt / dx) * (ey_local[i+1][j] - ey_local[i][j])
+	// 			                + (dt / dy) * (ex_local[i][j+1] - ex_local[i][j]);
+	// 	}
+	// }
+	// Send bottom of Bz to bz top row
+	int send_rank = (rank == size-1) ? MPI_PROC_NULL : rank+1;
+    int recv_rank = (rank == 0) ? MPI_PROC_NULL : rank-1;
+	// printf("%d: Bz matrix step %d\n", rank, step);
+	// printMatrix(bz_local, recv_count, col_length);
+	// printf("\n");
+
+	// printf("%d: Bz local send step %d\n", rank, step);
+	// for (int j=0; j<col_length; j++) {
+	// 	printf("%.2f ", bz_local[recv_count-1][j]);
+	// }
+	// printf("\n");
+
+	// printf("%d: Bz local recv step %d\n", rank, step);
+	// for (int j=0; j<col_length; j++) {
+	// 	printf("%.2f ", bz_top_local[0][j]);
+	// }
+	// printf("\n");
+
+	// printf("%d: send to %d, recv from %d\n", rank, send_rank, recv_rank);
+	// printf("%d: recv count %d step %d\n", rank, recv_count, step);
+	MPI_Sendrecv(&bz_local[recv_count-1][0], 1, bzType, send_rank, 0, &bz_top_local[0][0], 1, bzType, recv_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	// printf("%d: Successfully sent BZ step %d\n", rank, step);
+
+	// printf("%d: New Bz local top step %d\n", rank, step);
+	// for (int j=0; j<col_length; j++) {
+	// 	printf("%.2f ", bz_top_local[0][j]);
+	// }
+	// printf("\n");
 
 	// 4000 x 4000
 	// for (int i = 0; i < Ex_size_x; i++) {
@@ -48,6 +85,7 @@ void update_fields(int rank, int size, int recv_count, int col_length) {
 	// 		Ex[i][j] = Ex[i][j] + (dt / (dy * eps * mu)) * (Bz[i][j] - Bz[i][j-1]);
 	// 	}
 	// }
+	// printf("%d: Starting Ex\n", rank);
 	for (int i = 0; i < recv_count; i++) {
 		for (int j = 1; j < col_length; j++) {
 			ex_local[i][j] = ex_local[i][j] + (dt / (dy * eps * mu)) * (bz_local[i][j] - bz_local[i][j-1]);
@@ -60,15 +98,22 @@ void update_fields(int rank, int size, int recv_count, int col_length) {
 	// 		Ey[i][j] = Ey[i][j] - (dt / (dx * eps * mu)) * (Bz[i][j] - Bz[i-1][j]);
 	// 	}
 	// }
-	int start_row = (rank == 0) ? 1 : 0;
-	int finish_row = (rank == size-1) ? recv_count : recv_count+1;
-	printf("%d: start: %d, finish: %d\n", rank, start_row, finish_row);
-	for (int i = start_row; i < finish_row; i++) {
+	//int start_row = (rank == 0) ? 1 : 0;
+	int finish_row = (rank == size-1) ? recv_count : recv_count;
+	//printf("%d: start: %d, finish: %d\n", rank, 1, finish_row);
+	for (int i = 1; i < finish_row; i++) {
 		for (int j = 0; j < col_length; j++) {
 			ey_local[i][j] = ey_local[i][j] - (dt / (dx * eps * mu)) * (bz_local[i][j] - bz_local[i-1][j]); // Trying to reference outside area
 		}
 	}
-	printf("%d: EY EDIT SUCCESS\n", rank);
+	if (rank != 0) {
+		for (int j=0; j<col_length; j++) {
+			ey_local[0][j] = ey_local[0][j] - (dt / (dx * eps * mu)) * (bz_local[0][j] - bz_top_local[0][j]);
+			//printf("%d: ey local top - %f\n", rank, ey_local[0][j]);
+		}
+		
+	}
+	//printf("%d: EY EDIT SUCCESS\n", rank);
 }
 
 /**
@@ -188,20 +233,23 @@ int main(int argc, char *argv[]) {
         }
         displs[i] = (i == 0) ? 0 : displs[i-1]+recvCounts[i-1];
     }
-	for (int i=0; i<size; i++) {
-		printf("Rank: %d, rec: %d, disp: %d\n", i, recvCounts[i], displs[i]);
-	}
+	// for (int i=0; i<size; i++) {
+	// 	printf("Rank: %d, rec: %d, disp: %d\n", i, recvCounts[i], displs[i]);
+	// }
 
 	allocate_arrays(recvCounts[rank], col_length);
 
-	problem_set_up(recvCounts[rank], displs[rank], col_length);	
+	problem_set_up(rank, recvCounts[rank], displs[rank], col_length);
+
+	// printf("%d: BZ TOP\n", rank);
+	// printMatrix(bz_top_local, 1, col_length);
 
 	//printf("%d: Time taken to get to start: %f\n", rank, MPI_Wtime()-start_time);
 
 
-	printf("%d: ey local\n", rank);
-	printMatrix(ey_local, recvCounts[rank]+1, col_length);
-	printf("\n");
+	// printf("%d: ey local\n", rank);
+	// printMatrix(ey_local, recvCounts[rank]+1, col_length);
+	// printf("\n");
 
 
 	double t = 0.0;
@@ -210,30 +258,36 @@ int main(int argc, char *argv[]) {
 	while(i < steps) {
 		apply_boundary(rank, size, recvCounts[rank]);
 
-		printf("%d: Ey post boundary step: %d\n", rank, i);
-		printMatrix(ey_local, recvCounts[rank]+1, col_length);
-		printf("\n");
+		// printf("%d: Ey post boundary step: %d\n", rank, i);
+		// printMatrix(ey_local, recvCounts[rank]+1, col_length);
+		// printf("\n");
 
-		update_fields(rank, size, recvCounts[rank], col_length);
+		update_fields(rank, size, recvCounts[rank], col_length, i);
 
 		t += dt;
 
-		printf("%d: Ey before recv\n", rank);
-		printMatrix(ey_local, recvCounts[rank]+1, col_length);
-		printf("\n");
+		// printf("%d: Ey before recv\n", rank);
+		// printMatrix(ey_local, recvCounts[rank]+1, col_length);
+		// printf("\n");
 
 		// Grab top row from next rank and replace bottom of current
         int send_rank = (rank == 0) ? MPI_PROC_NULL : rank-1;
         int recv_rank = (rank == size-1) ? MPI_PROC_NULL : rank+1;
-        MPI_Sendrecv(&ey_local[0][0], 1, bzType, send_rank, 0, &ey_local[recvCounts[rank]][0], 1, bzType, recv_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		// Send my top row to rank-1 bottom row
+        MPI_Sendrecv(&ey_local[0][0], 1, eyType, send_rank, 0, &ey_local[recvCounts[rank]][0], 1, eyType, recv_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		
+		// // Send bottom of Bz to bz top row
+		// send_rank = (rank == size-1) ? MPI_PROC_NULL : rank+1;
+        // recv_rank = (rank == 0) ? MPI_PROC_NULL : rank-1;
+		// MPI_Sendrecv(&bz_local[recvCounts[rank]-1][0], 1, bzType, send_rank, 0, &bz_top_local[0][0], 1, bzType, recv_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-		printf("%d: Ey post recv\n", rank);
-		printMatrix(ey_local, recvCounts[rank]+1, col_length);
-		printf("\n");
+		// printf("%d: Ey post recv\n", rank);
+		// printMatrix(ey_local, recvCounts[rank]+1, col_length);
+		// printf("\n");
 
-		printf("%d: Ey step: %d\n", rank, i);
-		printMatrix(ey_local, recvCounts[rank]+1, col_length);
-		printf("\n");
+		// printf("%d: Ey step: %d\n", rank, i);
+		// printMatrix(ey_local, recvCounts[rank]+1, col_length);
+		// printf("\n");
 		
 
 		i++;
@@ -247,8 +301,8 @@ int main(int argc, char *argv[]) {
 			&(Ex[0][0]), recvCounts, displs, exType,
 			MPI_COMM_WORLD);
 	recvCounts[size-1] = recvCounts[size-1] + 1;
-	MPI_Allgatherv(&(ey_local[0][0]), recvCounts[rank], bzType,
-			&(Ey[0][0]), recvCounts, displs, bzType,
+	MPI_Allgatherv(&(ey_local[0][0]), recvCounts[rank], eyType,
+			&(Ey[0][0]), recvCounts, displs, eyType,
 			MPI_COMM_WORLD);
 
 	double E_mag, B_mag;
@@ -257,7 +311,7 @@ int main(int argc, char *argv[]) {
 	if (rank == 0) {
 		printf("Step %8d, Time: %14.8e (dt: %14.8e), E magnitude: %14.8e, B magnitude: %14.8e\n", steps, t, dt, E_mag, B_mag);
 		printf("Simulation complete.\n");
-		//printf("Time taken to compute: %f\n", MPI_Wtime()-start_time);
+		printf("Time taken to compute: %f\n", MPI_Wtime()-start_time);
 	}
 	
 	if (!no_output) 
