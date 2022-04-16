@@ -91,10 +91,12 @@ void resolve_to_grid(double *E_mag, double *B_mag) {
  * @return int The return value of the application
  */
 int main(int argc, char *argv[]) {
-	clock_t start;
+	printf("Version: CUDA\n");
+	clock_t start = clock();
 	set_defaults();
 	parse_args(argc, argv);
 	setup();
+	printf("Time taken to setup: %f\n", (( double ) ( clock() - start ) / CLOCKS_PER_SEC));
 
 	// Ignore the above lines for timing as these are trivial setup lines
 	start = clock();
@@ -105,6 +107,8 @@ int main(int argc, char *argv[]) {
 	allocate_arrays();
 
 	problem_set_up();
+
+	printf("Time taken to get to start: %f\n", (( double ) ( clock() - start ) / CLOCKS_PER_SEC));
 
 	// start at time 0
 	double t = 0.0;
@@ -118,7 +122,7 @@ int main(int argc, char *argv[]) {
 		if (i % output_freq == 0) {
 			double E_mag, B_mag;
 			resolve_to_grid(&E_mag, &B_mag);
-			//printf("Step %8d, Time: %14.8e (dt: %14.8e), E magnitude: %14.8e, B magnitude: %14.8e\n", i, t, dt, E_mag, B_mag);
+			printf("Step %8d, Time: %14.8e (dt: %14.8e), E magnitude: %14.8e, B magnitude: %14.8e\n", i, t, dt, E_mag, B_mag);
 
 			if ((!no_output) && (enable_checkpoints))
 				write_checkpoint(i);
