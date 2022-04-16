@@ -63,8 +63,7 @@ extern double ** bz_local;
 extern double ** ex_local;
 extern double ** ey_local;
 extern double ** bz_top_local;
-extern double ** local_buf;
-extern int bzType, exType, eyType;
+//extern int bzType, exType, eyType;
 
 double **alloc_2d_array(int m, int n);
 void free_2d_array(double ** array);

@@ -61,7 +61,6 @@ void allocate_arrays(int recv_count, int col_length) {
     ex_local = alloc_2d_array(recv_count, col_length+1);
     ey_local = alloc_2d_array(recv_count+1, col_length);
 	bz_top_local = alloc_2d_array(1, col_length);
-	local_buf = alloc_2d_array(1, col_length);
 }
 
 /**

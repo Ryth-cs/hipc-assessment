@@ -51,8 +51,7 @@ double ** bz_local;
 double ** ex_local;
 double ** ey_local;
 double ** bz_top_local;
-double ** local_buf;
-int bzType, exType, eyType;
+//int bzType, exType, eyType;
 
 /**
  * @brief Allocate a 2D array that is addressable using square brackets
