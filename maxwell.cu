@@ -101,17 +101,20 @@ void resolve_to_grid(double *E_mag, double *B_mag) {
 	// 	}
 	// }
 	for (int k = 0; k < E_size_x*E_size_y*E_size_z; k+=E_size_z) {
-		int zDirection = k % E_size_z;
+		//int zDirection = k % E_size_z;
         int col = (k / E_size_z) % E_size_y;
         int row = k / (E_size_y * E_size_z);
 
-		printf("X: %d, Y: %d, Z: %d\n", row, col, zDirection);
+		bool rowCheck = (row != 0) && (row != E_size_x-1);
+		bool colCheck = (col != 0) && (col != E_size_y-1);
+		if (rowCheck && colCheck) {
+			//printf("X: %d, Y: %d, Z: %d\n", row, col, zDirection);
 
-		E[k] = (Ex[((row-1)*Ex_size_y)+col] + Ex[(row*Ex_size_y)+col]) / 2.0;
-		E[k+1] = (Ey[(row*Ey_size_y)+(col-1)] + Ey[(row*Ey_size_y)+col]) / 2.0;
+			E[k] = (Ex[((row-1)*Ex_size_y)+col] + Ex[(row*Ex_size_y)+col]) / 2.0;
+			E[k+1] = (Ey[(row*Ey_size_y)+(col-1)] + Ey[(row*Ey_size_y)+col]) / 2.0;
 
-		*E_mag += sqrt((E[k] * E[k]) + (E[k+1] * E[k+1]));
-
+			*E_mag += sqrt((E[k] * E[k]) + (E[k+1] * E[k+1]));
+		}
 	}
 	
 	// for (int i = 1; i < B_size_x-1; i++) {
@@ -123,6 +126,21 @@ void resolve_to_grid(double *E_mag, double *B_mag) {
 	// 		*B_mag += sqrt(B[i][j][2] * B[i][j][2]);
 	// 	}
 	// }
+	for (int k = 0; k < B_size_x*B_size_y*B_size_z; k+=B_size_z) {
+		//int zDirection = k % B_size_z;
+        int col = (k / B_size_z) % B_size_y;
+        int row = k / (B_size_y * B_size_z);
+
+		bool rowCheck = (row != 0) && (row != B_size_x-1);
+		bool colCheck = (col != 0) && (col != B_size_y-1);
+		if (rowCheck && colCheck) {
+			//printf("X: %d, Y: %d, Z: %d\n", row, col, zDirection);
+
+			B[k+2] = (Bz[((row-1)*Bz_size_y)+col] + Bz[(row*Bz_size_y)+col] + Bz[(row*Bz_size_y)+(col-1)] + Bz[((row-1)*Bz_size_y)+(col-1)]) / 4.0;
+
+			*B_mag += sqrt(B[k+2] * B[k+2]);
+		}
+	}
 }
 
 /**
@@ -161,6 +179,7 @@ int main(int argc, char *argv[]) {
 	problem_set_up();
 
 	printf("AT START COMPLETED\n");
+
 	// printf("Time taken to get to start: %f\n", (( double ) ( clock() - start ) / CLOCKS_PER_SEC));
 
 	// start at time 0
@@ -183,6 +202,31 @@ int main(int argc, char *argv[]) {
 
 		i++;
 	}
+
+	printf("Bz Below\n");
+	for (int k=0; k<Bz_size_x*Bz_size_y; k+=Bz_size_y) {
+		for (int col=0; col<Bz_size_y; col++) {
+			printf("%f ", Bz[k+col]);
+		}
+		printf("\n");
+	}
+
+	printf("Ex Below\n");
+	for (int k=0; k<Ex_size_x*Ex_size_y; k+=Ex_size_y) {
+		for (int col=0; col<Ex_size_y; col++) {
+			printf("%f ", Ex[k+col]);
+		}
+		printf("\n");
+	}
+
+	printf("Ey Below\n");
+	for (int k=0; k<Ey_size_x*Ey_size_y; k+=Ey_size_y) {
+		for (int col=0; col<Ey_size_y; col++) {
+			printf("%f ", Ey[k+col]);
+		}
+		printf("\n");
+	}
+	//exit(0);
 
 	double E_mag, B_mag;
 	resolve_to_grid(&E_mag, &B_mag);
