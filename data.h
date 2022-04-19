@@ -46,17 +46,17 @@ extern int steps;
 //(0,0)  x -> 
 
 extern int Ex_size_x, Ex_size_y;
-extern double ** Ex;
+extern double * Ex;
 extern int Ey_size_x, Ey_size_y;
-extern double ** Ey;
+extern double * Ey;
 extern int Bz_size_x, Bz_size_y;
-extern double ** Bz;
+extern double * Bz;
 
 // These array are only needed for visualisation
 extern int E_size_x, E_size_y, E_size_z;
-extern double *** E;
+extern double * E;
 extern int B_size_x, B_size_y, B_size_z;
-extern double *** B;
+extern double * B;
 
 double **alloc_2d_array(int m, int n);
 void free_2d_array(double ** array);

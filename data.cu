@@ -33,17 +33,17 @@ int steps = 0;
 
 // Grids used for Yee grid computation
 int Ex_size_x, Ex_size_y;
-double ** Ex;
+double * Ex;
 int Ey_size_x, Ey_size_y;
-double ** Ey;
+double * Ey;
 int Bz_size_x, Bz_size_y;
-double ** Bz;
+double * Bz;
 
 // Resolved grids
 int E_size_x, E_size_y, E_size_z;
-double *** E;
+double * E;
 int B_size_x, B_size_y, B_size_z;
-double *** B;
+double * B;
 
 /**
  * @brief Allocate a 2D array that is addressable using square brackets
