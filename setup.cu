@@ -35,6 +35,10 @@ void setup() {
 	
 	if (steps == 0) // only set this if steps hasn't been specified
 		steps = (int) (T / dt);
+
+	// // Pass to GPU
+	// cudaMalloc((void**)&d_lengthX, sizeof(double));
+	// cudaMemcpy(d_lengthX, &lengthX, sizeof(double), cudaMemcpyHostToDevice);
 }
 
 /**
@@ -101,20 +105,6 @@ void free_arrays() {
  * 
  */
 void problem_set_up() {
-    // for (int i = 0; i < Ex_size_x; i++ ) {
-    //     for (int j = 0; j < Ex_size_y; j++) {
-    //         double xcen = lengthX / 2.0;
-    //         double ycen = lengthY / 2.0;
-    //         double xcoord = (i - xcen) * dx;
-    //         double ycoord = j * dy;
-    //         double rx = xcen - xcoord;
-    //         double ry = ycen - ycoord;
-    //         double rlen = sqrt(rx*rx + ry*ry);
-	// 		double tx = (rlen == 0) ? 0 : ry / rlen;
-    //         double mag = exp(-400.0 * (rlen - (lengthX / 4.0)) * (rlen - (lengthX / 4.0)));
-    //         Ex[i][j] = mag * tx;
-	// 	}
-	// }
 	for (int k=0; k<Ex_size_x*Ex_size_y; k++) {
 		int row = k / Ex_size_y;
 		int col = k % Ex_size_y;
@@ -131,20 +121,6 @@ void problem_set_up() {
 		Ex[k] = mag * tx;
 	}
 
-    // for (int i = 0; i < Ey_size_x; i++ ) {
-    //     for (int j = 0; j < Ey_size_y; j++) {
-    //         double xcen = lengthX / 2.0;
-    //         double ycen = lengthY / 2.0;
-    //         double xcoord = i * dx;
-    //         double ycoord = (j - ycen) * dy;
-    //         double rx = xcen - xcoord;
-    //         double ry = ycen - ycoord;
-    //         double rlen = sqrt(rx*rx + ry*ry);
-    //         double ty = (rlen == 0) ? 0 : -rx / rlen;
-	// 		double mag = exp(-400.0 * (rlen - (lengthY / 4.0)) * (rlen - (lengthY / 4.0)));
-    //         Ey[i][j] = mag * ty;
-	// 	}
-	// }
 	for (int k=0; k<Ey_size_x*Ey_size_y; k++) {
 		int row = k / Ey_size_y;
 		int col = k % Ey_size_y;
@@ -159,5 +135,71 @@ void problem_set_up() {
 		double mag = exp(-400.0 * (rlen - (lengthY / 4.0)) * (rlen - (lengthY / 4.0)));
 		//Ey[i][j] = mag * ty;
 		Ey[k] = mag*ty;
+	}
+}
+
+__global__ void problem_set_up_gpu(double *Ex, double *Ey, int Bz_size_x, int Bz_size_y, double lengthX, double lengthY, double dx, double dy) {
+	// Compute each thread's global row and column index
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+
+	// Boundary check for matrix
+	if (row < Bz_size_x){
+		if (col < Bz_size_y){
+			// Do Ex Ey
+			double xcen = lengthX / 2.0;
+			double ycen = lengthY / 2.0;
+			double xcoord = (row - xcen) * dx;
+			double ycoord = col * dy;
+			double rx = xcen - xcoord;
+			double ry = ycen - ycoord;
+			double rlen = sqrt(rx*rx + ry*ry);
+			double tx = (rlen == 0) ? 0 : ry / rlen;
+			double mag = exp(-400.0 * (rlen - (lengthX / 4.0)) * (rlen - (lengthX / 4.0)));
+			//Ex[i][j] = mag * tx;
+			Ex[row * (Bz_size_y+1) + col] = mag * tx;
+
+			xcen = lengthX / 2.0;
+			ycen = lengthY / 2.0;
+			xcoord = row * dx;
+			ycoord = (col - ycen) * dy;
+			rx = xcen - xcoord;
+			ry = ycen - ycoord;
+			rlen = sqrt(rx*rx + ry*ry);
+			double ty = (rlen == 0) ? 0 : -rx / rlen;
+			mag = exp(-400.0 * (rlen - (lengthY / 4.0)) * (rlen - (lengthY / 4.0)));
+			//Ey[i][j] = mag * ty;
+			Ey[row * Bz_size_y + col] = mag*ty;
+
+		} else if (col == Bz_size_y) {
+			// Do Ex extra
+			double xcen = lengthX / 2.0;
+			double ycen = lengthY / 2.0;
+			double xcoord = (row - xcen) * dx;
+			double ycoord = col * dy;
+			double rx = xcen - xcoord;
+			double ry = ycen - ycoord;
+			double rlen = sqrt(rx*rx + ry*ry);
+			double tx = (rlen == 0) ? 0 : ry / rlen;
+			double mag = exp(-400.0 * (rlen - (lengthX / 4.0)) * (rlen - (lengthX / 4.0)));
+			//Ex[i][j] = mag * tx;
+			Ex[row * Bz_size_y + col] = mag * tx;
+		
+		}
+	} else if (row == Bz_size_x) {
+		if (col < Bz_size_y){
+			// Do Ey extra
+			double xcen = lengthX / 2.0;
+			double ycen = lengthY / 2.0;
+			double xcoord = row * dx;
+			double ycoord = (col - ycen) * dy;
+			double rx = xcen - xcoord;
+			double ry = ycen - ycoord;
+			double rlen = sqrt(rx*rx + ry*ry);
+			double ty = (rlen == 0) ? 0 : -rx / rlen;
+			double mag = exp(-400.0 * (rlen - (lengthY / 4.0)) * (rlen - (lengthY / 4.0)));
+			//Ey[i][j] = mag * ty;
+			Ey[row * Bz_size_y + col] = mag*ty;
+		}
 	}
 }

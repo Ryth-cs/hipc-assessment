@@ -6,6 +6,8 @@
 #include "vtk.h"
 #include "data.h"
 
+#include <cuda.h>
+
 const double c = 299792458; // Speed of light
 const double mu = 4.0 * M_PI * 1.0e-7; // permiability of free space
 const double eps = 1.0 / (c * c * mu); // permitivitty of free space
@@ -16,6 +18,7 @@ const double cfl = 0.6363961031;
 
 // Grid size in metres
 double lengthX;
+double * d_lengthX;
 double lengthY;
 
 // Discretisation in cells

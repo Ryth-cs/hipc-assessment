@@ -10,6 +10,7 @@ extern const double cfl;
 
 // Grid size in metres
 extern double lengthX;
+extern double * d_lengthX;
 extern double lengthY;
 
 // Discretisation in cells
