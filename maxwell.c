@@ -226,15 +226,15 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Gather all the data back together
-	MPI_Allgatherv(&(bz_local[0][0]), recvCounts[rank], bzType,
-			&(Bz[0][0]), recvCounts, displs, bzType,
+	MPI_Gatherv(&(bz_local[0][0]), recvCounts[rank], bzType,
+			&(Bz[0][0]), recvCounts, displs, bzType, 0,
 			MPI_COMM_WORLD);
-	MPI_Allgatherv(&(ex_local[0][0]), recvCounts[rank], exType,
-			&(Ex[0][0]), recvCounts, displs, exType,
+	MPI_Gatherv(&(ex_local[0][0]), recvCounts[rank], exType,
+			&(Ex[0][0]), recvCounts, displs, exType, 0,
 			MPI_COMM_WORLD);
 	recvCounts[size-1] = recvCounts[size-1] + 1;
-	MPI_Allgatherv(&(ey_local[0][0]), recvCounts[rank], eyType,
-			&(Ey[0][0]), recvCounts, displs, eyType,
+	MPI_Gatherv(&(ey_local[0][0]), recvCounts[rank], eyType,
+			&(Ey[0][0]), recvCounts, displs, eyType, 0,
 			MPI_COMM_WORLD);
 
 	double E_mag, B_mag;
