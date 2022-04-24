@@ -202,7 +202,7 @@ int main(int argc, char *argv[]) {
         displs[i] = (i == 0) ? 0 : displs[i-1]+recvCounts[i-1];
     }
 
-	allocate_arrays(recvCounts[rank], col_length);
+	allocate_arrays(recvCounts[rank], col_length, rank);
 
 	problem_set_up(rank, recvCounts[rank], displs[rank], col_length);
 
@@ -226,30 +226,39 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Gather all the data back together
-	MPI_Gatherv(&(bz_local[0][0]), recvCounts[rank], bzType,
-			&(Bz[0][0]), recvCounts, displs, bzType, 0,
-			MPI_COMM_WORLD);
-	MPI_Gatherv(&(ex_local[0][0]), recvCounts[rank], exType,
-			&(Ex[0][0]), recvCounts, displs, exType, 0,
-			MPI_COMM_WORLD);
-	recvCounts[size-1] = recvCounts[size-1] + 1;
-	MPI_Gatherv(&(ey_local[0][0]), recvCounts[rank], eyType,
-			&(Ey[0][0]), recvCounts, displs, eyType, 0,
-			MPI_COMM_WORLD);
-
-	double E_mag, B_mag;
-	resolve_to_grid(&E_mag, &B_mag);
+	if (rank == 0) {
+		MPI_Gatherv(&(bz_local[0][0]), recvCounts[rank], bzType,
+				&(Bz[0][0]), recvCounts, displs, bzType, 0,
+				MPI_COMM_WORLD);
+		MPI_Gatherv(&(ex_local[0][0]), recvCounts[rank], exType,
+				&(Ex[0][0]), recvCounts, displs, exType, 0,
+				MPI_COMM_WORLD);
+		recvCounts[size-1] = recvCounts[size-1] + 1;
+		MPI_Gatherv(&(ey_local[0][0]), recvCounts[rank], eyType,
+				&(Ey[0][0]), recvCounts, displs, eyType, 0,
+				MPI_COMM_WORLD);
+	} else {
+		MPI_Gatherv(&(bz_local[0][0]), recvCounts[rank], bzType,
+				NULL, recvCounts, displs, bzType, 0,
+				MPI_COMM_WORLD);
+		MPI_Gatherv(&(ex_local[0][0]), recvCounts[rank], exType,
+				NULL, recvCounts, displs, exType, 0,
+				MPI_COMM_WORLD);
+		recvCounts[size-1] = recvCounts[size-1] + 1;
+		MPI_Gatherv(&(ey_local[0][0]), recvCounts[rank], eyType,
+				NULL, recvCounts, displs, eyType, 0,
+				MPI_COMM_WORLD);
+	}
 
 	if (rank == 0) {
+		double E_mag, B_mag;
+		resolve_to_grid(&E_mag, &B_mag);
 		printf("Step %8d, Time: %14.8e (dt: %14.8e), E magnitude: %14.8e, B magnitude: %14.8e\n", steps, t, dt, E_mag, B_mag);
 		printf("Simulation complete.\n");
 		printf("Time taken to compute: %f\n", MPI_Wtime()-start_time);
 	}
-	
-	if (!no_output) 
-		write_result();
 
-	free_arrays();
+	free_arrays(rank);
 
 	MPI_Finalize();
 	exit(0);
